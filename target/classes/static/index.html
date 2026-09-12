@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GamerLinker v2 - Perfis Avançados, Pareamento & Chat</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #0f1015; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; }
+        .navbar { background-color: #181920; border-bottom: 1px solid #292a33; }
+        .card-custom { background-color: #181920; border: 1px solid #292a33; border-radius: 12px; }
+        
+        .game-badge { background-color: #0d6efd; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 3px; margin-bottom: 3px; display: inline-block; }
+        .platform-badge { background-color: #198754; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 3px; margin-bottom: 3px; display: inline-block; }
+        .schedule-badge { background-color: #ffc107; color: #000; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; margin-right: 3px; margin-bottom: 3px; display: inline-block; font-weight: bold; }
+        .match-badge { background-color: #0dcaf0; color: #000; font-weight: bold; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
+
+        /* Layout Chat */
+        .chat-container { height: 440px; display: flex; flex-direction: column; }
+        .chat-messages { flex: 1; overflow-y: auto; background-color: #121318; border-radius: 8px; padding: 15px; }
+        .message { margin-bottom: 12px; padding: 10px 14px; border-radius: 10px; max-width: 80%; clear: both; word-wrap: break-word; }
+        .my-message { background-color: #0d6efd; color: white; float: right; border-bottom-right-radius: 2px; }
+        .other-message { background-color: #292a33; color: #ffffff; float: left; border-bottom-left-radius: 2px; }
+        .sender-name { font-size: 0.75rem; color: #ffffff; margin-bottom: 3px; font-weight: bold; }
+        
+        .avatar-circle { width: 42px; height: 42px; border-radius: 50%; background-color: #6f42c1; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1rem; color: #ffffff; }
+        .online-indicator { width: 10px; height: 10px; background-color: #198754; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        
+        .auth-container { max-width: 520px; margin: 40px auto; }
+        .form-check-inline { margin-right: 12px; }
+    </style>
+</head>
+<body>
+
+<!-- TELA DE AUTENTICAÇÃO (LOGIN / REGISTRO) -->
+<div id="authScreen" class="container">
+    <div class="auth-container card card-custom p-4 shadow-lg">
+        <div class="text-center mb-4">
+            <h2 class="text-primary font-weight-bold"><i class="fa-solid fa-gamepad me-2"></i>GamerLinker</h2>
+            <p class="text-white small">Crie seu perfil gamer com seus jogos, plataformas e horários de jogo!</p>
+        </div>
+
+        <!-- Abas Login / Criar Conta -->
+        <ul class="nav nav-pills nav-justified mb-3" id="authTabs">
+            <li class="nav-item">
+                <button class="nav-link active" id="tabLogin" onclick="switchAuthTab('login')">Entrar</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="tabRegister" onclick="switchAuthTab('register')">Criar Conta</button>
+            </li>
+        </ul>
+
+        <!-- Formulário -->
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <div id="registerFields" class="d-none">
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold">Nickname Gamer</label>
+                    <input type="text" id="authNickname" class="form-control bg-dark text-light border-secondary" placeholder="Ex: ProGamer99">
+                </div>
+
+                <!-- Seleção de Múltiplos Jogos -->
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold d-block">Jogos que você joga:</label>
+                    <div class="bg-dark p-2 rounded border border-secondary">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Valorant" id="g_val">
+                            <label class="form-check-label text-light small" for="g_val">Valorant</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="League of Legends" id="g_lol">
+                            <label class="form-check-label text-light small" for="g_lol">LoL</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="CS2" id="g_cs">
+                            <label class="form-check-label text-light small" for="g_cs">CS2</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Fortnite" id="g_fn">
+                            <label class="form-check-label text-light small" for="g_fn">Fortnite</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Apex Legends" id="g_apex">
+                            <label class="form-check-label text-light small" for="g_apex">Apex</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Rocket League" id="g_rl">
+                            <label class="form-check-label text-light small" for="g_rl">Rocket League</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Call of Duty" id="g_cod">
+                            <label class="form-check-label text-light small" for="g_cod">CoD/Warzone</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authGames" value="Minecraft" id="g_mc">
+                            <label class="form-check-label text-light small" for="g_mc">Minecraft</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seleção de Plataformas -->
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold d-block">Plataformas:</label>
+                    <div class="bg-dark p-2 rounded border border-secondary">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authPlatforms" value="PC" id="p_pc">
+                            <label class="form-check-label text-light small" for="p_pc"><i class="fa-solid fa-desktop me-1"></i>PC</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authPlatforms" value="PlayStation" id="p_ps">
+                            <label class="form-check-label text-light small" for="p_ps"><i class="fa-brands fa-playstation me-1"></i>PlayStation</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authPlatforms" value="Xbox" id="p_xb">
+                            <label class="form-check-label text-light small" for="p_xb"><i class="fa-brands fa-xbox me-1"></i>Xbox</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authPlatforms" value="Nintendo Switch" id="p_sw">
+                            <label class="form-check-label text-light small" for="p_sw">Switch</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authPlatforms" value="Mobile" id="p_mb">
+                            <label class="form-check-label text-light small" for="p_mb"><i class="fa-solid fa-mobile-screen me-1"></i>Mobile</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horários em que costuma jogar -->
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold d-block">Horários habituais de jogo:</label>
+                    <div class="bg-dark p-2 rounded border border-secondary">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authSchedules" value="Manhã" id="s_manha">
+                            <label class="form-check-label text-light small" for="s_manha"><i class="fa-solid fa-sun text-warning me-1"></i>Manhã</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authSchedules" value="Tarde" id="s_tarde">
+                            <label class="form-check-label text-light small" for="s_tarde"><i class="fa-solid fa-cloud-sun text-info me-1"></i>Tarde</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authSchedules" value="Noite" id="s_noite">
+                            <label class="form-check-label text-light small" for="s_noite"><i class="fa-solid fa-moon text-primary me-1"></i>Noite</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authSchedules" value="Madrugada" id="s_madruga">
+                            <label class="form-check-label text-light small" for="s_madruga"><i class="fa-solid fa-ghost text-secondary me-1"></i>Madrugada</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="authSchedules" value="Fim de Semana" id="s_fds">
+                            <label class="form-check-label text-light small" for="s_fds"><i class="fa-solid fa-calendar-days text-success me-1"></i>Fim de Semana</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white small fw-bold">E-mail</label>
+                <input type="email" id="authEmail" class="form-control bg-dark text-light border-secondary" placeholder="seu@email.com" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white small fw-bold">Senha</label>
+                <input type="password" id="authPassword" class="form-control bg-dark text-light border-secondary" placeholder="******" required>
+            </div>
+
+            <button type="submit" id="authSubmitBtn" class="btn btn-primary w-100 fw-bold py-2 mt-2">
+                Entrar na Conta
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- TELA PRINCIPAL DO APP (PAREAMENTO & CHAT REALTIME) -->
+<div id="appScreen" class="d-none">
+    <!-- Navbar Header -->
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand font-weight-bold" href="#">
+                <i class="fa-solid fa-gamepad text-primary me-2"></i><strong>GamerLinker</strong>
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="me-3 text-white">Jogador: <strong class="text-white" id="userLoggedDisplay">---</strong></span>
+                <button class="btn btn-sm btn-outline-danger" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i>Sair</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row g-4">
+            
+            <!-- COLUNA ESQUERDA: Pareamento Inteligente por Compatibilidade -->
+            <div class="col-lg-5">
+                <div class="card card-custom p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title text-primary mb-0"><i class="fa-solid fa-people-arrows me-2"></i>Pareamento Gamer</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadGamersFromSupabase()"><i class="fa-solid fa-rotate me-1"></i>Atualizar</button>
+                    </div>
+                    <p class="text-white small mb-3">Ordenado pelas melhores afinidades de **Jogos**, **Plataformas** e **Horários**!</p>
+
+                    <!-- Lista de Jogadores Encontrados no Supabase -->
+                    <div id="gamersList" class="d-flex flex-column gap-2" style="max-height: 500px; overflow-y: auto;">
+                        <div class="text-center text-white py-3"><i class="fa-solid fa-spinner fa-spin me-2"></i>Buscando jogadores...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUNA DIREITA: Chat em Tempo Real -->
+            <div class="col-lg-7">
+                <div class="card card-custom p-3">
+                    <!-- Cabeçalho da Conversa -->
+                    <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-circle me-3" id="chatAvatar">G</div>
+                            <div>
+                                <h5 class="mb-0 text-light" id="chatTargetName">Selecione um jogador para conversar</h5>
+                                <small class="text-white" id="chatTargetDetails"><span class="online-indicator"></span>Pareamento em tempo real</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-secondary" id="realtimeStatusBadge">Aguardando Sala</span>
+                    </div>
+
+                    <!-- Container do Chat -->
+                    <div class="chat-container">
+                        <div id="chatMessages" class="chat-messages mb-3">
+                            <div class="text-center text-white py-5">
+                                <i class="fa-regular fa-comments fa-3x mb-3"></i>
+                                <p>Clique em <strong>"Chat"</strong> em qualquer perfil ao lado para iniciar o bate-papo.</p>
+                            </div>
+                        </div>
+
+                        <!-- Input de Mensagem -->
+                        <div class="input-group">
+                            <input type="text" id="messageInput" class="form-control bg-dark text-light border-secondary" placeholder="Digite sua mensagem gamer..." disabled onkeypress="handleKeyPress(event)">
+                            <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>
+                                <i class="fa-solid fa-paper-plane me-1"></i> Enviar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===============================================================
+    // CONFIGURAÇÃO DO SUPABASE - COLE SUA CHAVE ANON AQUI
+    // ===============================================================
+    const SUPABASE_URL = 'https://vrkkmeypnxbnpphkqmao.supabase.co'.trim();
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZya2ttZXlwbnhibnBwaGtxbWFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNzYyMzQsImV4cCI6MjEwNDY1MjIzNH0.fRh894y4RvMVpgSGVyCn_PMg_w8sDt52WDVnl6cvs8c'.trim();
+    // ===============================================================
+
+    let supabaseClient = null;
+    let activeChannel = null;
+    let authMode = 'login'; // 'login' ou 'register'
+    let currentUser = null; // Usuário logado
+    let currentUserProfile = null; // Perfil do usuário logado
+    let currentConversationId = '';
+
+    if (SUPABASE_URL && SUPABASE_ANON_KEY !== 'COLE_AQUI_A_SUA_CHAVE_ANON_PUBLIC') {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    window.onload = async () => {
+        if (!supabaseClient) return;
+
+        // Verifica sessão ativa no Supabase Auth
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            setupUserSession(session.user);
+        }
+    };
+
+    function switchAuthTab(mode) {
+        authMode = mode;
+        const regFields = document.getElementById('registerFields');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const tabLogin = document.getElementById('tabLogin');
+        const tabRegister = document.getElementById('tabRegister');
+
+        if (mode === 'register') {
+            regFields.classList.remove('d-none');
+            submitBtn.innerText = 'Criar Minha Conta Gamer';
+            tabRegister.classList.add('active');
+            tabLogin.classList.remove('active');
+        } else {
+            regFields.classList.add('d-none');
+            submitBtn.innerText = 'Entrar na Conta';
+            tabLogin.classList.add('active');
+            tabRegister.classList.remove('active');
+        }
+    }
+
+    function getCheckedValues(name) {
+        return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
+    }
+
+    async function handleAuth(event) {
+        event.preventDefault();
+        if (!supabaseClient) {
+            alert("Atenção: Cole sua SUPABASE_ANON_KEY no arquivo index.html para ativar a autenticação!");
+            return;
+        }
+
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+
+        if (authMode === 'register') {
+            const nickname = document.getElementById('authNickname').value.trim() || email.split('@')[0];
+            const games = getCheckedValues('authGames');
+            const platforms = getCheckedValues('authPlatforms');
+            const schedules = getCheckedValues('authSchedules');
+
+            // 1. Cadastra no Supabase Auth
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { nickname, games, platforms, schedules }
+                }
+            });
+
+            if (error) {
+                alert("Erro ao criar conta: " + error.message);
+                return;
+            }
+
+            // 2. Salva o perfil na tabela 'profiles' para o pareamento
+            if (data.user) {
+                await supabaseClient.from('profiles').upsert([{
+                    id: data.user.id,
+                    nickname: nickname,
+                    games: games,
+                    platforms: platforms,
+                    schedules: schedules,
+                    email: email
+                }]);
+                setupUserSession(data.user);
+            }
+        } else {
+            // Login de conta existente
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                alert("Erro no login: " + error.message);
+                return;
+            }
+
+            if (data.user) {
+                setupUserSession(data.user);
+            }
+        }
+    }
+
+    async function setupUserSession(user) {
+        currentUser = user;
+
+        // Busca o perfil completo da tabela 'profiles'
+        const { data: profile } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+        currentUserProfile = profile || {
+            id: user.id,
+            nickname: user.user_metadata?.nickname || user.email.split('@')[0],
+            games: user.user_metadata?.games || [],
+            platforms: user.user_metadata?.platforms || [],
+            schedules: user.user_metadata?.schedules || [],
+            email: user.email
+        };
+
+        document.getElementById('userLoggedDisplay').innerText = `${currentUserProfile.nickname} (${user.email})`;
+
+        document.getElementById('authScreen').classList.add('d-none');
+        document.getElementById('appScreen').classList.remove('d-none');
+
+        // Carrega lista de contas cadastradas com pareamento inteligente
+        await loadGamersFromSupabase();
+    }
+
+    async function logout() {
+        if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+        }
+        currentUser = null;
+        currentUserProfile = null;
+        document.getElementById('appScreen').classList.add('d-none');
+        document.getElementById('authScreen').classList.remove('d-none');
+    }
+
+    // Algoritmo de Pareamento por Compatibilidade
+    function calculateMatchScore(myProfile, otherProfile) {
+        const myGames = myProfile.games || [];
+        const otherGames = otherProfile.games || [];
+        const myPlatforms = myProfile.platforms || [];
+        const otherPlatforms = otherProfile.platforms || [];
+        const mySchedules = myProfile.schedules || [];
+        const otherSchedules = otherProfile.schedules || [];
+
+        // Jogos em comum (+30 pontos cada)
+        const commonGames = myGames.filter(g => otherGames.includes(g));
+        
+        // Plataformas em comum (+20 pontos cada)
+        const commonPlatforms = myPlatforms.filter(p => otherPlatforms.includes(p));
+
+        // Horários em comum (+20 pontos cada)
+        const commonSchedules = mySchedules.filter(s => otherSchedules.includes(s));
+
+        const score = (commonGames.length * 30) + (commonPlatforms.length * 20) + (commonSchedules.length * 20);
+
+        return {
+            score,
+            commonGames,
+            commonPlatforms,
+            commonSchedules
+        };
+    }
+
+    // Buscar lista de contas criadas na tabela 'profiles' e calcular pareamento
+    async function loadGamersFromSupabase() {
+        const container = document.getElementById('gamersList');
+        container.innerHTML = '<div class="text-center text-white py-3"><i class="fa-solid fa-spinner fa-spin me-2"></i>Buscando e calculando pareamento...</div>';
+
+        const { data: profiles, error } = await supabaseClient
+            .from('profiles')
+            .select('*');
+
+        container.innerHTML = '';
+
+        if (error || !profiles) {
+            console.error("Erro ao carregar perfis:", error);
+            container.innerHTML = '<div class="text-white text-center py-3"><small>Nenhum outro jogador encontrado ou tabela "profiles" ainda não atualizada.</small></div>';
+            return;
+        }
+
+        // Filtra para não mostrar a própria conta logada
+        const otherGamers = profiles.filter(p => p.id !== currentUser.id);
+
+        if (otherGamers.length === 0) {
+            container.innerHTML = '<div class="text-white text-center py-3"><small>Você é a única conta cadastrada. Crie outra conta com preferências diferentes para testar o pareamento e o chat!</small></div>';
+            return;
+        }
+
+        // Mapeia e calcula a compatibilidade para cada jogador
+        const rankedGamers = otherGamers.map(gamer => {
+            const matchInfo = calculateMatchScore(currentUserProfile, gamer);
+            return { gamer, ...matchInfo };
+        });
+
+        // Ordena por pontuação de compatibilidade (do maior para o menor)
+        rankedGamers.sort((a, b) => b.score - a.score);
+
+        rankedGamers.forEach(({ gamer, score, commonGames, commonPlatforms, commonSchedules }) => {
+            const card = document.createElement('div');
+            card.className = 'card bg-dark border-secondary p-3 mb-2';
+            const initial = (gamer.nickname || 'G')[0].toUpperCase();
+
+            // Formatação das tags
+            const gamesList = Array.isArray(gamer.games) && gamer.games.length > 0 
+                ? gamer.games.map(g => `<span class="game-badge">${g}</span>`).join('') 
+                : '<span class="text-white small">Nenhum jogo</span>';
+
+            const platformsList = Array.isArray(gamer.platforms) && gamer.platforms.length > 0 
+                ? gamer.platforms.map(p => `<span class="platform-badge">${p}</span>`).join('') 
+                : '';
+
+            const schedulesList = Array.isArray(gamer.schedules) && gamer.schedules.length > 0 
+                ? gamer.schedules.map(s => `<span class="schedule-badge">${s}</span>`).join('') 
+                : '';
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-circle me-2" style="width:38px; height:38px; font-size:1rem;">${initial}</div>
+                        <div>
+                            <strong class="text-light d-block">${gamer.nickname || gamer.email}</strong>
+                            <small class="text-white">${gamer.email}</small>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="match-badge mb-1 d-inline-block"><i class="fa-solid fa-bolt me-1"></i>${score}% Compatível</span>
+                        <br>
+                        <button class="btn btn-sm btn-outline-primary mt-1" onclick="openChatWithProfile('${gamer.id}', '${gamer.nickname || gamer.email}')">
+                            <i class="fa-regular fa-comment-dots me-1"></i>Chat
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-2 border-top border-secondary pt-2">
+                    <div class="mb-1"><small class="text-white me-1">Jogos:</small> ${gamesList}</div>
+                    <div class="mb-1"><small class="text-white me-1">Plataformas:</small> ${platformsList}</div>
+                    <div><small class="text-white me-1">Horários:</small> ${schedulesList}</div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Abrir Sala de Chat para uma conta cadastrada existente
+    async function openChatWithProfile(targetUserId, nickname) {
+        // ID único da conversa usando o UUID de ambos os usuários ordenados
+        const ids = [currentUser.id, targetUserId].sort();
+        currentConversationId = `chat_${ids[0]}_${ids[1]}`;
+
+        // Atualizar UI do Chat
+        document.getElementById('chatTargetName').innerText = nickname;
+        document.getElementById('chatTargetDetails').innerHTML = `<span class="online-indicator"></span>Pareamento Ativo`;
+        document.getElementById('chatAvatar').innerText = nickname[0].toUpperCase();
+        document.getElementById('realtimeStatusBadge').className = 'badge bg-success';
+        document.getElementById('realtimeStatusBadge').innerText = 'Tempo Real Ativo';
+
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+
+        if (activeChannel) {
+            supabaseClient.removeChannel(activeChannel);
+        }
+
+        // 1. Carrega histórico de mensagens da conversa existente
+        await loadChatHistory();
+
+        // 2. Escuta novas mensagens em Tempo Real do Supabase
+        activeChannel = supabaseClient
+            .channel(`dm:${currentConversationId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `conversation_id=eq.${currentConversationId}`
+                },
+                (payload) => {
+                    renderSingleMessage(payload.new);
+                }
+            )
+            .subscribe((status) => {
+                console.log(`Status WebSocket Realtime (${currentConversationId}):`, status);
+            });
+    }
+
+    async function loadChatHistory() {
+        const chatContainer = document.getElementById('chatMessages');
+        chatContainer.innerHTML = '<div class="text-center text-white py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i>Carregando histórico...</div>';
+
+        const { data, error } = await supabaseClient
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', currentConversationId)
+            .order('created_at', { ascending: true });
+
+        chatContainer.innerHTML = '';
+
+        if (error) {
+            console.error("Erro ao carregar mensagens:", error);
+            chatContainer.innerHTML = '<div class="text-danger text-center py-4">Erro ao carregar o chat. Verifique se a tabela de mensagens existe.</div>';
+            return;
+        }
+
+        if (data.length === 0) {
+            chatContainer.innerHTML = '<div class="text-center text-white py-4"><p>Nenhuma mensagem ainda neste chat.</p><small>Envie uma mensagem para iniciar o papo!</small></div>';
+        } else {
+            data.forEach(msg => renderSingleMessage(msg));
+        }
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+
+        if (!text || !currentConversationId) return;
+
+        input.value = '';
+
+        const myNickname = currentUserProfile?.nickname || currentUser.email.split('@')[0];
+
+        const payload = {
+            conversation_id: currentConversationId,
+            sender_id: myNickname,
+            content: text
+        };
+
+        const { error } = await supabaseClient
+            .from('messages')
+            .insert(payload);
+
+        if (error) {
+            console.error("Erro ao enviar mensagem:", error);
+            alert("Erro ao enviar mensagem: " + error.message);
+        }
+    }
+
+    function renderSingleMessage(msg) {
+        const chatContainer = document.getElementById('chatMessages');
+        const myNickname = currentUserProfile?.nickname || currentUser.email.split('@')[0];
+
+        const placeholder = chatContainer.querySelector('.text-center');
+        if (placeholder) {
+            chatContainer.innerHTML = '';
+        }
+
+        const isMe = msg.sender_id === myNickname;
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${isMe ? 'my-message' : 'other-message'}`;
+
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'sender-name';
+        senderDiv.innerText = isMe ? 'Você' : msg.sender_id;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.innerText = msg.content;
+
+        msgDiv.appendChild(senderDiv);
+        msgDiv.appendChild(contentDiv);
+
+        chatContainer.appendChild(msgDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+</script>
+</body>
+</html>
