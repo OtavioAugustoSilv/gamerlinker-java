@@ -175,7 +175,6 @@ public class PasswordRecoveryController {
                 .uri(supabaseUrl.replaceAll("/$", "") + "/auth/v1/admin/users/" + userId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("apikey", serviceRoleKey)
-                .header("Authorization", "Bearer " + serviceRoleKey)
                 .body(Map.of("password", newPassword))
                 .retrieve()
                 .toBodilessEntity();
@@ -195,25 +194,25 @@ public class PasswordRecoveryController {
     }
 
     private String findSupabaseUserIdByEmail(String email) {
-        JsonNode response = restClient.get()
-            .uri(supabaseUrl.replaceAll("/$", "") + "/auth/v1/admin/users?page=1&per_page=1000")
-            .header("apikey", serviceRoleKey)
-            .header("Authorization", "Bearer " + serviceRoleKey)
-            .retrieve()
-            .body(JsonNode.class);
+    JsonNode response = restClient.get()
+        .uri(supabaseUrl.replaceAll("/$", "") + "/auth/v1/admin/users?page=1&per_page=1000")
+        .header("apikey", serviceRoleKey)
+        .retrieve()
+        .body(JsonNode.class);
 
-        if (response == null || !response.has("users") || !response.get("users").isArray()) {
-            return null;
-        }
-
-        for (JsonNode user : response.get("users")) {
-            String userEmail = user.path("email").asText("");
-            if (email.equalsIgnoreCase(userEmail)) {
-                return user.path("id").asText(null);
-            }
-        }
+    if (response == null || !response.has("users") || !response.get("users").isArray()) {
         return null;
     }
+
+    for (JsonNode user : response.get("users")) {
+        String userEmail = user.path("email").asText("");
+        if (email.equalsIgnoreCase(userEmail)) {
+            return user.path("id").asText(null);
+        }
+    }
+
+    return null;
+}
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
