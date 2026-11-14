@@ -21,6 +21,7 @@
     <!-- Supabase JS CDN -->
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <style>
@@ -39,7 +40,7 @@
 
         .match-badge { background-color: #0dcaf0; color: #000; font-weight: bold; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
 
-        /* Layout Chat */
+        / Layout Chat /
 
         .chat-container { height: 440px; display: flex; flex-direction: column; }
 
@@ -329,7 +330,7 @@
 
                     <button type="button" class="btn btn-info btn-sm w-100 fw-bold text-dark" onclick="solicitarRedefinicaoSenha()">
 
-                        <i class="fa-solid fa-envelope me-1"></i> Enviar Código por E-mail
+                        <i class="fa-solid fa-envelope me-1"></i> Enviar link por e-mail
 
                     </button>
 
@@ -712,6 +713,18 @@
             if (config.supabaseUrl && config.supabaseKey) {
 
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseKey);
+
+                // O Supabase envia o link de recuperação e devolve o usuário para esta página.
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    if (event === 'PASSWORD_RECOVERY' && session) {
+                        const message = document.getElementById('recoveryModalMessage');
+                        message.className = 'small mt-3 text-info';
+                        message.innerText = 'Link validado. Informe sua nova senha abaixo.';
+                        bootstrap.Modal.getOrCreateInstance(
+                            document.getElementById('passwordRecoveryModal')
+                        ).show();
+                    }
+                });
 
                 console.log("Supabase carregado com sucesso via backend Java!");
 
@@ -1155,9 +1168,9 @@
 
                                 <span class="fw-bold text-warning"><i class="fa-solid fa-coins me-1"></i>${item.price} Moedas</span>
 
-                                ${isPurchased   
+                                ${isPurchased
 
-                                    ? '<button class="btn btn-sm btn-secondary" disabled><i class="fa-solid fa-check me-1"></i>Já Possui</button>'   
+                                    ? '<button class="btn btn-sm btn-secondary" disabled><i class="fa-solid fa-check me-1"></i>Já Possui</button>'
 
                                     : `<button class="btn btn-sm btn-warning fw-bold" onclick="buyStoreItem('${item.id}')"><i class="fa-solid fa-cart-plus me-1"></i>Comprar</button>`
 
@@ -1392,6 +1405,7 @@
         const score = Math.min(rawScore, 100);
 
         return { score: score, commonGames, commonPlatforms, commonSchedules };
+
     }
 
     async function loadGamersFromSupabase() {
@@ -1444,21 +1458,21 @@
 
             const initial = (gamer.nickname || 'G')[0].toUpperCase();
 
-            const gamesList = Array.isArray(gamer.games) && gamer.games.length > 0   
+            const gamesList = Array.isArray(gamer.games) && gamer.games.length > 0
 
-                ? gamer.games.map(g => `<span class="game-badge">${g}</span>`).join('')   
+                ? gamer.games.map(g => `<span class="game-badge">${g}</span>`).join('')
 
                 : '<span class="text-white small">Nenhum jogo</span>';
 
-            const platformsList = Array.isArray(gamer.platforms) && gamer.platforms.length > 0   
+            const platformsList = Array.isArray(gamer.platforms) && gamer.platforms.length > 0
 
-                ? gamer.platforms.map(p => `<span class="platform-badge">${p}</span>`).join('')   
+                ? gamer.platforms.map(p => `<span class="platform-badge">${p}</span>`).join('')
 
                 : '';
 
-            const schedulesList = Array.isArray(gamer.schedules) && gamer.schedules.length > 0   
+            const schedulesList = Array.isArray(gamer.schedules) && gamer.schedules.length > 0
 
-                ? gamer.schedules.map(s => `<span class="schedule-badge">${s}</span>`).join('')   
+                ? gamer.schedules.map(s => `<span class="schedule-badge">${s}</span>`).join('')
 
                 : '';
 
@@ -1710,56 +1724,43 @@
         const email = document.getElementById('resetEmailField').value.trim();
         const button = document.querySelector('#resetPasswordArea button');
 
+        if (!supabaseClient) {
+            alert('O Supabase ainda não foi carregado. Atualize a página e tente novamente.');
+            return;
+        }
+
         if (!email) {
-            alert("Por favor, preencha o campo de e-mail para solicitar a redefinição de senha.");
+            alert('Digite o e-mail cadastrado para receber o link de recuperação.');
             return;
         }
 
         if (button) {
             button.disabled = true;
-            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando código...';
+            button.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Enviando link...';
         }
 
         try {
-            const response = await fetch('/api/password-recovery/request', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+            const redirectTo = window.location.origin + window.location.pathname;
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo
             });
 
-            const result = await response.json();
+            if (error) throw error;
 
-            if (!response.ok) {
-                throw new Error(result.message || result.error || 'Não foi possível solicitar o código.');
-            }
-
-            window.recoveryEmail = email;
-            document.getElementById('recoveryCodeInput').value = '';
-            document.getElementById('recoveryNewPassword').value = '';
-            document.getElementById('recoveryConfirmPassword').value = '';
-            document.getElementById('recoveryModalMessage').className = 'small mt-3 text-info';
-            document.getElementById('recoveryModalMessage').innerText =
-                'Se esse e-mail estiver cadastrado, enviaremos um código de recuperação. Verifique sua caixa de entrada e o spam. O código expira em 10 minutos.';
-
-            bootstrap.Modal.getOrCreateInstance(
-                document.getElementById('passwordRecoveryModal')
-            ).show();
-
+            alert('Se esse e-mail estiver cadastrado, o Supabase enviará um link de recuperação. Verifique sua caixa de entrada e a pasta de spam.');
+            document.getElementById('resetPasswordArea').classList.add('d-none');
         } catch (error) {
             console.error('Erro ao solicitar recuperação:', error);
-            alert('Erro ao enviar código de recuperação: ' + error.message);
+            alert('Erro ao enviar link de recuperação: ' + (error.message || 'Tente novamente.'));
         } finally {
             if (button) {
                 button.disabled = false;
-                button.innerHTML = '<i class="fa-solid fa-envelope me-1"></i> Enviar Código por E-mail';
+                button.innerHTML = '<i class="fa-solid fa-envelope me-1"></i> Enviar link por e-mail';
             }
         }
     }
 
-
     async function confirmarRedefinicaoSenha() {
-        const email = window.recoveryEmail;
-        const code = document.getElementById('recoveryCodeInput').value.trim();
         const password = document.getElementById('recoveryNewPassword').value;
         const confirmPassword = document.getElementById('recoveryConfirmPassword').value;
         const message = document.getElementById('recoveryModalMessage');
@@ -1767,9 +1768,9 @@
 
         message.innerText = '';
 
-        if (!code || !password || !confirmPassword) {
+        if (!password || !confirmPassword) {
             message.className = 'small mt-3 text-warning';
-            message.innerText = 'Preencha todos os campos.';
+            message.innerText = 'Preencha os dois campos de senha.';
             return;
         }
 
@@ -1789,63 +1790,52 @@
         button.innerText = 'Salvando...';
 
         try {
-            const response = await fetch('/api/password-recovery/confirm', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, code, newPassword: password })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.message || result.error || 'Código inválido ou expirado.');
-            }
+            const { error } = await supabaseClient.auth.updateUser({ password });
+            if (error) throw error;
 
             message.className = 'small mt-3 text-success';
-            message.innerText = 'Senha alterada com sucesso!';
+            message.innerText = 'Senha alterada com sucesso! Você já pode entrar com a nova senha.';
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 bootstrap.Modal.getOrCreateInstance(
                     document.getElementById('passwordRecoveryModal')
                 ).hide();
-                document.getElementById('resetPasswordArea').classList.add('d-none');
-                document.getElementById('resetEmailField').value = '';
-                document.getElementById('authEmail').value = email;
-                document.getElementById('authPassword').value = '';
-            }, 1200);
 
+                document.getElementById('recoveryNewPassword').value = '';
+                document.getElementById('recoveryConfirmPassword').value = '';
+                document.getElementById('resetEmailField').value = '';
+                document.getElementById('authPassword').value = '';
+
+                await supabaseClient.auth.signOut();
+            }, 1400);
         } catch (error) {
-            console.error('Erro ao confirmar recuperação:', error);
+            console.error('Erro ao alterar senha:', error);
             message.className = 'small mt-3 text-danger';
-            message.innerText = error.message;
+            message.innerText = error.message || 'Não foi possível alterar a senha. Solicite um novo link.';
         } finally {
             button.disabled = false;
             button.innerText = 'Salvar nova senha';
         }
     }
+
 </script>
 
-
-
-<!-- Modal de recuperação de senha -->
+<!-- Modal de recuperação de senha via link do Supabase -->
 <div class="modal fade" id="passwordRecoveryModal" tabindex="-1" aria-labelledby="passwordRecoveryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content bg-dark text-white border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="passwordRecoveryModalLabel">Recuperação de senha</h5>
+                <h5 class="modal-title" id="passwordRecoveryModalLabel">Definir nova senha</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <p class="small text-light">Digite o código de recuperação enviado para o seu e-mail. Confira também a pasta de spam.</p>
-
-                <label for="recoveryCodeInput" class="form-label">Código de recuperação</label>
-                <input type="text" id="recoveryCodeInput" class="form-control bg-dark text-white border-secondary mb-3" maxlength="6" inputmode="numeric" placeholder="Digite os 6 dígitos">
+                <p class="small text-light">Digite e confirme sua nova senha para concluir a recuperação da conta.</p>
 
                 <label for="recoveryNewPassword" class="form-label">Nova senha</label>
-                <input type="password" id="recoveryNewPassword" class="form-control bg-dark text-white border-secondary mb-3" minlength="8" placeholder="Nova senha">
+                <input type="password" id="recoveryNewPassword" class="form-control bg-dark text-white border-secondary mb-3" minlength="8" autocomplete="new-password" placeholder="Nova senha">
 
                 <label for="recoveryConfirmPassword" class="form-label">Confirmar nova senha</label>
-                <input type="password" id="recoveryConfirmPassword" class="form-control bg-dark text-white border-secondary" minlength="8" placeholder="Confirme a nova senha">
+                <input type="password" id="recoveryConfirmPassword" class="form-control bg-dark text-white border-secondary" minlength="8" autocomplete="new-password" placeholder="Confirme a nova senha">
 
                 <div id="recoveryModalMessage" class="small mt-3"></div>
             </div>
