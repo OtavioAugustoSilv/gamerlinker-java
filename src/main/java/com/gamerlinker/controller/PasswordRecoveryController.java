@@ -103,19 +103,34 @@ public class PasswordRecoveryController {
             return ResponseEntity.ok(Map.of(
                     "message", "Se o e-mail estiver cadastrado, enviaremos um código de recuperação."
             ));
+        
         } catch (MailException ex) {
+            System.err.println("ERRO NO ENVIO DE EMAIL:");
+            ex.printStackTrace();
+
             return ResponseEntity.internalServerError().body(Map.of(
-                    "error", "Não foi possível enviar o e-mail de recuperação. Confira a configuração SMTP do backend."
+                "error", "Falha no envio do e-mail. Confira os logs."
             ));
+
         } catch (RestClientResponseException ex) {
+            System.err.println("ERRO NA RESPOSTA DO SUPABASE:");
+            System.err.println("HTTP: " + ex.getStatusCode());
+            System.err.println("RESPOSTA: " + ex.getResponseBodyAsString());
+            ex.printStackTrace();
+
             return ResponseEntity.status(502).body(Map.of(
-                    "error", "Não foi possível consultar o serviço de autenticação. Confira a configuração do Supabase."
+                "error", "Falha na comunicação com o Supabase."
             ));
+
         } catch (Exception ex) {
+            System.err.println("ERRO INTERNO NA RECUPERAÇÃO DE SENHA:");
+            ex.printStackTrace();
+
             return ResponseEntity.internalServerError().body(Map.of(
-                    "error", "Erro interno ao solicitar a recuperação. Confira o console do backend."
+                "error", "Erro interno ao solicitar a recuperação."
             ));
         }
+
     }
 
     /** Valida o código e altera a senha diretamente no Supabase Auth Admin API. */
