@@ -702,6 +702,9 @@
 
     let myInventoryItemIds = new Set();
 
+    // Impede que a sessão temporária do link de recuperação seja tratada como login.
+    let isPasswordRecovery = false;
+
     window.onload = async () => {
 
         try {
@@ -714,9 +717,17 @@
 
                 supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseKey);
 
-                // O Supabase envia o link de recuperação e devolve o usuário para esta página.
+                // O link de recuperação cria uma sessão temporária no Supabase.
+                // Essa sessão serve apenas para trocar a senha, nunca para entrar no app.
                 supabaseClient.auth.onAuthStateChange((event, session) => {
                     if (event === 'PASSWORD_RECOVERY' && session) {
+                        isPasswordRecovery = true;
+                        currentUser = null;
+                        currentUserProfile = null;
+
+                        document.getElementById('appScreen').classList.add('d-none');
+                        document.getElementById('authScreen').classList.remove('d-none');
+
                         const message = document.getElementById('recoveryModalMessage');
                         message.className = 'small mt-3 text-info';
                         message.innerText = 'Link validado. Informe sua nova senha abaixo.';
@@ -738,10 +749,9 @@
 
             const { data: { session } } = await supabaseClient.auth.getSession();
 
-            if (session) {
-
+            // Nunca inicializa a área logada com a sessão usada para redefinir senha.
+            if (session && !isPasswordRecovery) {
                 setupUserSession(session.user);
-
             }
 
         } catch (error) {
@@ -1794,9 +1804,24 @@
             if (error) throw error;
 
             message.className = 'small mt-3 text-success';
-            message.innerText = 'Senha alterada com sucesso! Você já pode entrar com a nova senha.';
+            message.innerText = 'Senha alterada com sucesso! Faça login com sua nova senha.';
 
-            setTimeout(async () => {
+            // Encerra somente a sessão local temporária criada pelo link de recuperação.
+            // A senha já foi atualizada; agora o usuário deverá entrar manualmente.
+            const { error: signOutError } = await supabaseClient.auth.signOut({ scope: 'local' });
+            if (signOutError) {
+                console.warn('Não foi possível encerrar a sessão temporária:', signOutError);
+            }
+
+            isPasswordRecovery = false;
+            currentUser = null;
+            currentUserProfile = null;
+
+            document.getElementById('appScreen').classList.add('d-none');
+            document.getElementById('authScreen').classList.remove('d-none');
+            document.getElementById('authPassword').value = '';
+
+            setTimeout(() => {
                 bootstrap.Modal.getOrCreateInstance(
                     document.getElementById('passwordRecoveryModal')
                 ).hide();
@@ -1805,8 +1830,6 @@
                 document.getElementById('recoveryConfirmPassword').value = '';
                 document.getElementById('resetEmailField').value = '';
                 document.getElementById('authPassword').value = '';
-
-                await supabaseClient.auth.signOut();
             }, 1400);
         } catch (error) {
             console.error('Erro ao alterar senha:', error);
