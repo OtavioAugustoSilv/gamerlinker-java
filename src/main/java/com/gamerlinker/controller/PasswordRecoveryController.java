@@ -113,16 +113,19 @@ public class PasswordRecoveryController {
             ));
 
         } catch (RestClientResponseException ex) {
-            System.err.println("ERRO NA RESPOSTA DO SUPABASE:");
-            System.err.println("HTTP: " + ex.getStatusCode());
-            System.err.println("RESPOSTA: " + ex.getResponseBodyAsString());
-            ex.printStackTrace();
 
-            return ResponseEntity.status(502).body(Map.of(
-                "error", "Falha na comunicação com o Supabase."
-            ));
+    System.err.println("========== ERRO SUPABASE ==========");
+    System.err.println("STATUS HTTP: " + ex.getStatusCode());
+    System.err.println("RESPOSTA: " + ex.getResponseBodyAsString());
+    System.err.println("===================================");
 
-        } catch (Exception ex) {
+    ex.printStackTrace();
+
+    return ResponseEntity.status(502).body(Map.of(
+        "error", "Falha na comunicação com o Supabase."
+    ));
+
+} catch (Exception ex) {
             System.err.println("ERRO INTERNO NA RECUPERAÇÃO DE SENHA:");
             ex.printStackTrace();
 
